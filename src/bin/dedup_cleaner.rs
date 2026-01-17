@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     let data = fs::read_to_string(json_path)
         .with_context(|| format!("Failed to read {}", json_path))?;
 
-    let mut groups: Vec<Vec<FileEntry>> =
+    let groups: Vec<Vec<FileEntry>> =
         serde_json::from_str(&data).context("Invalid JSON format")?;
 
     println!("Loaded {} duplicate groups\n", groups.len());

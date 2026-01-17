@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
+    cmp::Reverse,
     collections::HashMap,
     fs::File,
     io::{BufReader, BufWriter, Read, Write},
@@ -81,7 +82,7 @@ async fn main() -> Result<()> {
         .collect();
 
     // sort duplicate groups by file size
-    duplicates.sort_by_key(|group| group[0].size);
+    duplicates.sort_by_key(|group| Reverse(group[0].size));
     write_json("duplicates.json", &duplicates)?;
 
     // ---- statistics
