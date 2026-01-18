@@ -16,17 +16,22 @@ struct FileEntry {
 fn main() -> anyhow::Result<()> {
     let input_path = env::args()
         .nth(1)
-        .expect("Usage: resort <input_file.json>");
+        .expect("Usage: resort_all <input_file.json>");
 
     let file = File::open(&input_path)?;
     let reader = BufReader::with_capacity(1024*1024, file); //1mb buffer
-    let mut groups: Vec<Vec<FileEntry>> = serde_json::from_reader(reader)?;
+    let mut groups: Vec<FileEntry> = serde_json::from_reader(reader)?;
 
     //sort by accumulated size
+    /*
     groups.sort_by(|a, b| {
-        let size_a: u64 = a.iter().map(|f| f.size).sum();
-        let size_b: u64 = b.iter().map(|f| f.size).sum();
-        size_b.cmp(&size_a) // absteigend
+        let size_a: u64 = a.size;
+        let size_b: u64 = b.size;
+        size_b.cmp(&size_a) 
+    });
+*/
+    groups.sort_by(|a, b| {
+        b.size.cmp( &a.size)
     });
     
     // store back
