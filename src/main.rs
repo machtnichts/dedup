@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use serde::Serialize;
-use sha2::{Digest, Sha256};
+use blake3::Hasher;
 use std::{
     cmp::Reverse,
     collections::HashMap,
     fs::File,
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufWriter, Read, Write},
     path::PathBuf,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -15,12 +15,8 @@ use std::{
 use tokio::task;
 use walkdir::WalkDir;
 
-#[derive(Serialize, Debug, Clone)]
-struct FileEntry {
-    path: String,
-    size: u64,
-    sha256: String,
-}
+use dedup::types::FileEntry;
+
 
 struct Stats {
     files: AtomicU64,
@@ -47,7 +43,7 @@ async fn main() -> Result<()> {
 
             let metadata = match entry.metadata() {
                 Ok(m) => m,
-                Err(_) => continue, // ignoriert Dateien, die sich nicht öffnen lassen
+                Err(_) => continue, // ignore
             };
 
             if metadata.len() < 1024 {
@@ -81,7 +77,7 @@ async fn main() -> Result<()> {
     let mut map: HashMap<(u64, String), Vec<FileEntry>> = HashMap::new();
 
     for f in &files {
-        map.entry((f.size, f.sha256.clone()))
+        map.entry((f.size, f.checksum.clone()))
             .or_default()
             .push(f.clone());
     }
@@ -131,18 +127,17 @@ async fn main() -> Result<()> {
 }
 
 fn process_file(path: PathBuf, stats: Arc<Stats>) -> Result<FileEntry> {
-    let file = File::open(&path)
+    let mut file = File::open(&path)
         .with_context(|| format!("Failed to open {}", path.display()))?;
 
     let metadata = file.metadata()?;
     let size = metadata.len();
 
-    let mut reader = BufReader::new(file);
-    let mut hasher = Sha256::new();
-    let mut buffer = [0u8; 8192];
+    let mut hasher = Hasher::new();
+    let mut buffer = vec![0u8; 2 * 1024 * 1024];
 
     loop {
-        let n = reader.read(&mut buffer)?;
+        let n = file.read(&mut buffer)?;
         if n == 0 {
             break;
         }
@@ -163,7 +158,8 @@ fn process_file(path: PathBuf, stats: Arc<Stats>) -> Result<FileEntry> {
     Ok(FileEntry {
         path: path.to_string_lossy().to_string(),
         size,
-        sha256: format!("{:x}", hasher.finalize()),
+        checksum: hasher.finalize().to_hex().to_string(),
+                      
     })
 }
 
@@ -174,3 +170,64 @@ fn write_json<T: Serialize>(filename: &str, data: &T) -> Result<()> {
     writer.flush()?;
     Ok(())
 }
+
+/*
+ * uses more than 80 gb RAM, takes longer 
+ *
+fn process_file_optimized(path: PathBuf, stats: Arc<Stats>) -> Result<FileEntry> {
+    let file = File::open(&path)
+        .with_context(|| format!("Failed to open {}", path.display()))?;
+    let metadata = file.metadata()?;
+    let size = metadata.len();
+
+    // Thresholds
+    const SMALL_FILE: u64 = 1 * 1024 * 1024;   // 1 MB
+    const MEDIUM_FILE: u64 = 128 * 1024 * 1024; // 128 MB
+
+    let hash_hex = if size < SMALL_FILE {
+        // kleine Dateien: 64 KB Buffer
+        let mut hasher = Hasher::new();
+        let mut buffer = [0u8; 64 * 1024];
+        let mut f = file;
+        loop {
+            let n = f.read(&mut buffer)?;
+            if n == 0 { break; }
+            hasher.update(&buffer[..n]);
+        }
+        hasher.finalize().to_hex().to_string()
+    } else if size < MEDIUM_FILE {
+        // mittlere Dateien: 4 MB Buffer
+        let mut hasher = Hasher::new();
+        let mut buffer = vec![0u8; 4 * 1024 * 1024];
+        let mut f = file;
+        loop {
+            let n = f.read(&mut buffer)?;
+            if n == 0 { break; }
+            hasher.update(&buffer[..n]);
+        }
+        hasher.finalize().to_hex().to_string()
+    } else {
+        // große Dateien: mmap
+        let mmap = unsafe { Mmap::map(&file)? };
+        blake3::hash(&mmap).to_hex().to_string()
+    };
+
+    // Statistik
+    let file_count = stats.files.fetch_add(1, Ordering::Relaxed) + 1;
+    let byte_count = stats.bytes.fetch_add(size, Ordering::Relaxed) + size;
+
+    if file_count % 100 == 0 {
+        println!(
+            "Processed {:>8} files ({:.2} MB)",
+            file_count,
+            byte_count as f64 / 1_048_576.0
+        );
+    }
+
+    Ok(FileEntry {
+        path: path.to_string_lossy().to_string(),
+        size,
+        blake3: hash_hex, // optional: kannst auch field umbenennen
+    })
+}
+*/

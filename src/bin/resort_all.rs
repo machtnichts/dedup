@@ -1,17 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufWriter;
 use std::env;
 use std::path::Path;
-
-
-#[derive(Debug, Serialize, Deserialize)]
-struct FileEntry {
-    path: String,
-    size: u64,
-    sha256: String,
-}
+use dedup::types::FileEntry;
 
 fn main() -> anyhow::Result<()> {
     let input_path = env::args()
@@ -22,14 +14,6 @@ fn main() -> anyhow::Result<()> {
     let reader = BufReader::with_capacity(1024*1024, file); //1mb buffer
     let mut groups: Vec<FileEntry> = serde_json::from_reader(reader)?;
 
-    //sort by accumulated size
-    /*
-    groups.sort_by(|a, b| {
-        let size_a: u64 = a.size;
-        let size_b: u64 = b.size;
-        size_b.cmp(&size_a) 
-    });
-*/
     groups.sort_by(|a, b| {
         b.size.cmp( &a.size)
     });

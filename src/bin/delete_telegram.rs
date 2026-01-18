@@ -1,19 +1,13 @@
-use serde::Deserialize;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+
+use dedup::types::FileEntry;
 
 const RED: &str = "\x1b[31m";
 const GREEN: &str = "\x1b[32m";
 const YELLOW: &str = "\x1b[33m";
 const RESET: &str = "\x1b[0m";
-
-#[derive(Debug, Deserialize)]
-struct FileEntry {
-    path: String,
-//    size: u64,
-//    sha256: String,
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ─────────────────────────────────────────────

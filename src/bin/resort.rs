@@ -1,17 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufWriter;
 use std::env;
 use std::path::Path;
-
-
-#[derive(Debug, Serialize, Deserialize)]
-struct FileEntry {
-    path: String,
-    size: u64,
-    sha256: String,
-}
+use dedup::types::FileEntry;
 
 fn main() -> anyhow::Result<()> {
     let input_path = env::args()

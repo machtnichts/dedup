@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
 use std::{
     collections::HashSet,
     env,
@@ -8,12 +7,7 @@ use std::{
     path::PathBuf,
 };
 
-#[derive(Debug, Deserialize)]
-struct FileEntry {
-    path: String,
-//    size: u64,
-//    sha256: String,
-}
+use dedup::types::FileEntry;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
