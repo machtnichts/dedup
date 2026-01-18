@@ -11,8 +11,8 @@ use std::{
 #[derive(Debug, Deserialize)]
 struct FileEntry {
     path: String,
-    size: u64,
-    sha256: String,
+//    size: u64,
+//    sha256: String,
 }
 
 fn main() -> Result<()> {

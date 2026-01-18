@@ -31,7 +31,7 @@ struct Stats {
 async fn main() -> Result<()> {
     let root = std::env::args()
         .nth(1)
-        .context("Usage: dirhash <directory>")?;
+        .context("Usage: dedup <directory>")?;
 
     println!("Processing folder: {}\n", root);
 
@@ -44,6 +44,16 @@ async fn main() -> Result<()> {
 
     for entry in WalkDir::new(&root).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
+
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue, // ignoriert Dateien, die sich nicht öffnen lassen
+            };
+
+            if metadata.len() < 1024 {
+                continue; // ignore small files
+            }
+
             let path = entry.path().to_path_buf();
             let stats = stats.clone();
 

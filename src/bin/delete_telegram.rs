@@ -176,16 +176,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// - `Some(indices)` → indices of files in `group` that should be deleted
 /// - `None` → we have no idea for this group, skip it entirely
 fn files_to_delete(group: &[FileEntry]) -> Option<Vec<usize>> {
-    let mut has_valid_sofort_upload = false;
+    let mut has_preferred_entry = false;
 
     for file in group {
-        if is_valid_sofort_upload(file) {
-            has_valid_sofort_upload = true;
+        if is_preferred_entry(file) {
+            has_preferred_entry = true;
             break;
         }
     }
 
-    if !has_valid_sofort_upload {
+    if !has_preferred_entry {
         return None; // explicit: we don't know what to delete
     }
 
@@ -193,34 +193,20 @@ fn files_to_delete(group: &[FileEntry]) -> Option<Vec<usize>> {
         group
             .iter()
             .enumerate()
-            .filter(|(_, file)| !is_valid_sofort_upload(file))
+            .filter(|(_, file)| !is_preferred_entry(file))
             .map(|(idx, _)| idx)
             .collect(),
     )
 }
 
 /// Check whether a file is a valid SofortUpload/Camera file.
-fn is_valid_sofort_upload(file: &FileEntry) -> bool {
+fn is_preferred_entry(file: &FileEntry) -> bool {
     let prefix =
-        "/var/lib/docker/volumes/nextcloud_aio_nextcloud_data/_data/trwa/files/SofortUpload/Camera/";
+        "/var/lib/docker/volumes/nextcloud_aio_nextcloud_data/_data/trwa/files/SofortUpload/Telegram/";
 
-    let rest = match file.path.strip_prefix(prefix) {
-        Some(r) => r,
-        None => return false,
+    let _rest = match file.path.strip_prefix(prefix) {
+        Some(_r) => return false,
+        None => return true,
     };
-
-    let parts: Vec<&str> = rest.split('/').collect();
-    if parts.len() < 3 {
-        return false;
-    }
-
-    let year = parts[0];
-    let month = parts[1];
-    let filename = parts[2];
-
-    year.len() == 4
-        && month.len() == 2
-        && filename.starts_with(year)
-        && filename.get(4..6) == Some(month)
 }
 
